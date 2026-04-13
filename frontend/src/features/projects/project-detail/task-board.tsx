@@ -41,11 +41,6 @@ type ProjectTaskBoardProps = {
   onClearFilters: () => void;
   onEditTask: (task: Task) => void;
   onStatusChange: (task: Task, nextStatus: TaskStatus) => void;
-  onMoveTask: (
-    task: Task,
-    targetStatus: TaskStatus,
-    overTaskId?: string,
-  ) => void;
 };
 
 export function ProjectTaskBoard({
@@ -63,13 +58,11 @@ export function ProjectTaskBoard({
   onClearFilters,
   onEditTask,
   onStatusChange,
-  onMoveTask,
 }: ProjectTaskBoardProps) {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{
-    status: TaskStatus;
-    overTaskId?: string;
-  } | null>(null);
+  const [dropTargetStatus, setDropTargetStatus] = useState<TaskStatus | null>(
+    null,
+  );
 
   const visibleTaskMap = new Map(
     Object.values(groupedTasks)
@@ -79,10 +72,10 @@ export function ProjectTaskBoard({
 
   function resetDragState() {
     setDraggedTaskId(null);
-    setDropTarget(null);
+    setDropTargetStatus(null);
   }
 
-  function handleColumnDrop(targetStatus: TaskStatus, overTaskId?: string) {
+  function handleColumnDrop(targetStatus: TaskStatus) {
     if (!draggedTaskId) {
       return;
     }
@@ -93,7 +86,7 @@ export function ProjectTaskBoard({
       return;
     }
 
-    onMoveTask(draggedTask, targetStatus, overTaskId);
+    onStatusChange(draggedTask, targetStatus);
     resetDragState();
   }
 
@@ -109,8 +102,7 @@ export function ProjectTaskBoard({
           </h2>
           <p className="mt-3 text-sm leading-7 text-muted-foreground">
             Tasks remain grouped for quick scanning while filters narrow the
-            result set. Drag cards to reorder work or move them between status
-            columns.
+            result set. Drag cards between status columns to update progress.
           </p>
         </div>
 
@@ -168,9 +160,7 @@ export function ProjectTaskBoard({
                   key={section.status}
                   className={cn(
                     "rounded-[1.5rem] border border-border/70 bg-background/75 p-4 xl:min-h-[32rem] xl:min-w-[20rem] xl:max-w-[22rem] xl:flex-1",
-                    draggedTaskId &&
-                      dropTarget?.status === section.status &&
-                      !dropTarget?.overTaskId
+                    draggedTaskId && dropTargetStatus === section.status
                       ? "border-primary/60 bg-primary/5"
                       : "",
                   )}
@@ -180,11 +170,8 @@ export function ProjectTaskBoard({
                     }
 
                     event.preventDefault();
-                    if (
-                      dropTarget?.status !== section.status ||
-                      Boolean(dropTarget?.overTaskId)
-                    ) {
-                      setDropTarget({ status: section.status });
+                    if (dropTargetStatus !== section.status) {
+                      setDropTargetStatus(section.status);
                     }
                   }}
                   onDragLeave={(event) => {
@@ -196,11 +183,8 @@ export function ProjectTaskBoard({
                       return;
                     }
 
-                    if (
-                      dropTarget?.status === section.status &&
-                      !dropTarget?.overTaskId
-                    ) {
-                      setDropTarget(null);
+                    if (dropTargetStatus === section.status) {
+                      setDropTargetStatus(null);
                     }
                   }}
                   onDrop={(event) => {
@@ -245,30 +229,11 @@ export function ProjectTaskBoard({
                           isStatusUpdating={statusUpdatingTaskId === task.id}
                           disableStatusChange={disableStatusChange}
                           isDragging={draggedTaskId === task.id}
-                          isDropTarget={dropTarget?.overTaskId === task.id}
                           onDragStart={() => {
                             setDraggedTaskId(task.id);
-                            setDropTarget({
-                              status: task.status,
-                              overTaskId: task.id,
-                            });
+                            setDropTargetStatus(task.status);
                           }}
                           onDragEnd={resetDragState}
-                          onDragOver={() => {
-                            if (
-                              !disableStatusChange &&
-                              (dropTarget?.overTaskId !== task.id ||
-                                dropTarget?.status !== section.status)
-                            ) {
-                              setDropTarget({
-                                status: section.status,
-                                overTaskId: task.id,
-                              });
-                            }
-                          }}
-                          onDrop={() =>
-                            handleColumnDrop(section.status, task.id)
-                          }
                         />
                       ))
                     ) : (
@@ -295,11 +260,8 @@ function TaskCard({
   isStatusUpdating,
   disableStatusChange,
   isDragging,
-  isDropTarget,
   onDragStart,
   onDragEnd,
-  onDragOver,
-  onDrop,
 }: {
   task: Task;
   assigneeLabel: string;
@@ -308,11 +270,8 @@ function TaskCard({
   isStatusUpdating: boolean;
   disableStatusChange: boolean;
   isDragging: boolean;
-  isDropTarget: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
-  onDragOver: () => void;
-  onDrop: () => void;
 }) {
   return (
     <article
@@ -320,31 +279,12 @@ function TaskCard({
       className={cn(
         "rounded-2xl border border-border/70 bg-card/85 p-4 shadow-sm transition-opacity",
         isDragging ? "opacity-50" : "",
-        isDropTarget ? "border-primary/60 ring-2 ring-primary/20" : "",
       )}
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = "move";
         onDragStart();
       }}
       onDragEnd={onDragEnd}
-      onDragOver={(event) => {
-        if (disableStatusChange) {
-          return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        onDragOver();
-      }}
-      onDrop={(event) => {
-        if (disableStatusChange) {
-          return;
-        }
-
-        event.preventDefault();
-        event.stopPropagation();
-        onDrop();
-      }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">

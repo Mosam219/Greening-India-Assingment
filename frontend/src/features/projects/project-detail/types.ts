@@ -23,5 +23,4 @@ export type TaskEditorState =
 export type UpdateTaskStatusVariables = {
   task: Task;
   nextStatus: TaskStatus;
-  nextTaskOrder?: string[];
 };

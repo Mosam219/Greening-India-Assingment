@@ -1,29 +1,12 @@
 # TaskFlow Frontend
 
-Frontend-only implementation of TaskFlow, built as a small but complete task management product against a mocked REST API. The app includes authentication, project and task management flows, optimistic updates, drag-and-drop task movement, and a persistent dark mode toggle.
+## 1. Overview
 
-The application code lives in [`frontend/`](./frontend).
+This repository contains a frontend-only implementation of **TaskFlow**, a small project and task management application. It includes authentication flows, a projects dashboard, project detail views, task creation and editing, optimistic updates, drag-and-drop task movement, and a persistent dark mode toggle.
 
-This repository currently contains the frontend application only. Backend, database, migrations, and seed infrastructure mentioned in broader full-stack requirements are outside the scope of this repo.
+The app is built against a mocked REST API contract using browser-side request interception, so the UI behaves like it is talking to a real backend at `http://localhost:4000` without requiring an API server in this repo.
 
-## Implemented Features
-
-- User-focused landing page with clear auth entry points
-- Login and registration with client-side validation
-- Persisted auth session with `localStorage`
-- Protected routes with redirect back to the intended page after login
-- Projects list with loading, error, empty, and create states
-- Project detail page with task grouping by status
-- Task filtering by `status` and `assignee`
-- Task create/edit side panel
-- Optimistic task status updates with rollback on failure
-- Drag-and-drop task movement between columns
-- Drag-and-drop reordering within a column
-- Persistent dark mode toggle
-- Responsive layouts for mobile and desktop
-- Explicit loading, error, and empty states throughout the product
-
-## Tech Stack
+### Tech Stack
 
 - React 19
 - TypeScript
@@ -33,49 +16,93 @@ This repository currently contains the frontend application only. Backend, datab
 - React Hook Form
 - Zod
 - Tailwind CSS
-- `shadcn/ui`-style local UI primitives
+- Local `shadcn/ui`-style component primitives
 - MSW (Mock Service Worker)
+- Docker + Nginx for containerized frontend delivery
 
-## UI And Mocking Choices
+### Implemented Product Features
 
-### Styling and Components
+- User-focused landing page
+- Login and registration with client-side validation
+- Persisted auth state via `localStorage`
+- Protected routes with redirect-after-login behavior
+- Projects list with loading, error, empty, and create states
+- Project detail page with grouped task columns
+- Task filtering by status and assignee
+- Task create/edit side panel
+- Optimistic task status updates with rollback on failure
+- Drag-and-drop task movement between status columns
+- Persistent dark mode toggle
+- Responsive layout for mobile and desktop
 
-This project uses `Tailwind CSS` for styling and local `shadcn/ui`-style component primitives in `frontend/src/components/ui`.
+## 2. Architecture Decisions
 
-### Mock Backend
+### Why it is structured this way
 
-This project uses `MSW` rather than `json-server`.
+- **Thin route files**: route-level page files are kept small and mostly delegate to feature-specific hooks and view components. This keeps routing concerns separate from business logic and makes refactors safer.
+- **Feature-oriented modules**: auth, marketing, projects, tasks, and theme state are grouped by domain instead of by file type alone. That keeps related query logic, UI, and utilities close together.
+- **MSW for the backend contract**: I used MSW instead of a simple in-memory function layer so the app still performs real HTTP requests, sends auth headers, and handles realistic status codes, delays, and structured error responses.
+- **TanStack Query for server state**: project and task data are query-driven, which makes loading/error states explicit and supports optimistic updates with rollback.
+- **Local UI primitives**: instead of pulling a large component library runtime into the project, I used Tailwind with local `shadcn/ui`-style primitives for predictable styling and easier control over the look and interaction details.
 
-Why:
+### Tradeoffs
 
-- It intercepts real browser HTTP requests while keeping the frontend pointed at `http://localhost:4000`.
-- Auth headers, status codes, delays, and structured errors are exercised through the real fetch layer.
-- It makes optimistic updates and rollback behavior easier to test realistically.
+- **Frontend-only scope**: this repo intentionally does not include a real API, database, PostgreSQL container, migrations, or seed pipeline. That keeps the submission aligned with the chosen scope, but it also means some infrastructure requirements from a full-stack version are documented as not applicable here.
+- **Mocked users list omission**: the provided API contract does not include a user listing endpoint, so assignee labels are derived from the project and task context already available.
+- **Websocket or SSE support**: Real-time task updates via WebSocket or SSE
 
-Mock handlers live in `frontend/src/mocks`, and the generated service worker lives in `frontend/public/mockServiceWorker.js`.
+### Intentionally left out
 
-## Docker
+- Real backend/API server
+- PostgreSQL
+- Migrations and seed runner
+- Automated end-to-end or unit test suite
+- Multi-user collaborative sync beyond the mocked browser session
 
-The frontend now includes a production-oriented container setup:
+Those were left out because this repo was intentionally built as a **frontend-only submission with mocked APIs**, and expanding beyond that would have changed the scope substantially.
 
-- [`frontend/Dockerfile`](./frontend/Dockerfile): multi-stage frontend build
-- [`frontend/nginx/default.conf`](./frontend/nginx/default.conf): SPA-safe Nginx config with history fallback
-- [`docker-compose.yml`](./docker-compose.yml): root-level compose file for the frontend service
-- [`.env.example`](./.env.example): root-level defaults used by Docker Compose
+### Current frontend structure
 
-### Run With Docker
+```text
+frontend/
+  nginx/        Nginx config for the containerized SPA
+  public/       Static assets and generated MSW worker
+  src/
+    app/        App bootstrap, providers, and router
+    components/ Shared layout and UI primitives
+    config/     Env parsing
+    features/   Auth, marketing, projects, tasks, and theme logic
+    lib/        API client, query client, validation helpers, utilities
+    mocks/      MSW handlers, browser setup, seeded mock data
+    pages/      Route entry files
+    types/      Shared domain and API types
+```
+
+## 3. Running Locally
+
+Assume Docker is installed and available.
 
 ```bash
+git clone https://github.com/Mosam219/Greening-India-Assingment.git taskflow
+cd taskflow
+cp .env.example .env
 docker compose up --build
 ```
 
-Then open `http://localhost:3000` unless you changed `FRONTEND_PORT`.
+App available at:
 
-If you want to override the defaults, copy `.env.example` to `.env` and adjust the values before running Compose.
+```text
+http://localhost:3000
+```
 
-### Docker Environment
+### Notes
 
-The root [`.env.example`](./.env.example) provides these defaults:
+- The root [`docker-compose.yml`](./docker-compose.yml) starts the frontend service only, because this repository does not include API or PostgreSQL services.
+- The frontend image is built from [`frontend/Dockerfile`](./frontend/Dockerfile) and served through Nginx with SPA route fallback configured in [`frontend/nginx/default.conf`](./frontend/nginx/default.conf).
+
+### Environment Variables
+
+Root [`.env.example`](./.env.example):
 
 ```bash
 FRONTEND_PORT=3000
@@ -83,102 +110,285 @@ VITE_API_BASE_URL=http://localhost:4000
 VITE_ENABLE_API_MOCKS=true
 ```
 
-Notes:
+- `FRONTEND_PORT` controls the host port exposed by Docker Compose.
+- `VITE_API_BASE_URL` is the API base URL compiled into the frontend.
+- `VITE_ENABLE_API_MOCKS=true` keeps the repo self-contained by enabling MSW in the browser.
 
-- `VITE_*` values are build-time arguments for the frontend image.
-- With `VITE_ENABLE_API_MOCKS=true`, the app remains frontend-only and serves mocked API responses in the browser.
-- If you later connect a real API container, set `VITE_ENABLE_API_MOCKS=false` and point `VITE_API_BASE_URL` to the appropriate API origin.
+## 4. Running Migrations
 
-## Supported API Contract
+Not applicable in this repository.
 
-The frontend is written against the provided backend contract:
+This repo does **not** include:
 
-- Base URL: `http://localhost:4000`
-- Auth endpoints under `/auth/*`
-- Projects endpoints under `/projects/*`
-- Task endpoints under `/projects/:id/tasks` and `/tasks/:id`
+- a backend service
+- a PostgreSQL database
+- migration files
+- a seed runner
 
-When mocks are enabled, MSW intercepts these requests in the browser and serves seeded responses locally.
+Because the submission is frontend-only, there are no migrations to run locally.
 
-## Seeded Reviewer Account
+## 5. Test Credentials
 
-- Email: `test@example.com`
-- Password: `password123`
+Use the seeded reviewer account:
+
+```text
+Email:    test@example.com
+Password: password123
+```
 
 You can also register a new user through the UI.
 
-## Environment
+## 6. API Reference
 
-Environment configuration for local non-Docker development is defined in [`frontend/.env.example`](./frontend/.env.example):
+This app implements the following mocked API contract through MSW. The frontend sends requests as if the backend were running at `http://localhost:4000`.
 
-```bash
-VITE_API_BASE_URL=http://localhost:4000
-VITE_ENABLE_API_MOCKS=true
+### Auth
+
+#### `POST /auth/register`
+
+Request:
+
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "secret123"
+}
 ```
 
-`VITE_ENABLE_API_MOCKS=true` is the expected default for this frontend-only submission.
+Response `201`:
 
-## Run Locally
-
-All commands below are run from the `frontend/` directory.
-
-```bash
-cd frontend
-pnpm install
-pnpm dev
+```json
+{
+  "token": "<jwt>",
+  "user": {
+    "id": "uuid",
+    "name": "Jane Doe",
+    "email": "jane@example.com"
+  }
+}
 ```
 
-Then open the local Vite URL shown in the terminal.
+#### `POST /auth/login`
 
-## Useful Scripts
+Request:
 
-```bash
-cd frontend
-pnpm dev
-pnpm build
-pnpm lint
-pnpm preview
+```json
+{
+  "email": "jane@example.com",
+  "password": "secret123"
+}
 ```
 
-## Project Structure
+Response `200`:
+
+```json
+{
+  "token": "<jwt>",
+  "user": {
+    "id": "uuid",
+    "name": "Jane Doe",
+    "email": "jane@example.com"
+  }
+}
+```
+
+### Projects
+
+#### `GET /projects`
+
+Requires:
 
 ```text
-frontend/
-  nginx/        Nginx config for the production container
-  public/       Static assets and generated MSW worker
-  src/
-    app/        Bootstrap, providers, and router
-    components/ Shared layout and UI primitives
-    config/     Env parsing
-    features/   Auth, marketing, projects, tasks, and theme logic
-    lib/        API client, query client, utilities, validation helpers
-    mocks/      MSW browser setup, handlers, and seeded data
-    pages/      Route-level entry files
-    types/      Shared API and domain types
+Authorization: Bearer <token>
 ```
 
-## Architecture Notes
+Response `200`:
 
-- Route files are intentionally thin and delegate behavior into feature-level hooks and components.
-- Query cache keys are centralized for project/task data consistency.
-- Task status changes use optimistic cache updates with rollback if the request fails.
-- Task ordering is persisted client-side per project because the provided API contract does not expose a reorder endpoint or task position field.
-- Theme selection is applied before React renders to avoid a light-mode flash on refresh.
-
-## Verification
-
-The current handoff has been verified with:
-
-```bash
-cd frontend
-pnpm lint
-pnpm build
+```json
+{
+  "projects": [
+    {
+      "id": "uuid",
+      "name": "Website Redesign",
+      "description": "Q2 project",
+      "owner_id": "uuid",
+      "created_at": "2026-04-01T10:00:00Z"
+    }
+  ]
+}
 ```
 
-## Notes
+#### `POST /projects`
 
-- This submission does not include a real backend or database.
-- The root `docker-compose.yml` starts the frontend service only, because this repo does not include API or PostgreSQL code.
-- Mock API state is browser-local and resets if the dev session is restarted.
-- Assignee labels are derived from project and task context because the provided contract does not include a user listing endpoint.
-- Auth state, theme preference, and drag-and-drop task ordering persist in `localStorage`.
+Request:
+
+```json
+{
+  "name": "New Project",
+  "description": "Optional description"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "id": "uuid",
+  "name": "New Project",
+  "description": "Optional description",
+  "owner_id": "uuid",
+  "created_at": "2026-04-09T10:00:00Z"
+}
+```
+
+#### `GET /projects/:id`
+
+Response `200`:
+
+```json
+{
+  "id": "uuid",
+  "name": "Website Redesign",
+  "description": "Q2 project",
+  "owner_id": "uuid",
+  "tasks": [
+    {
+      "id": "uuid",
+      "title": "Design homepage",
+      "status": "in_progress",
+      "priority": "high",
+      "assignee_id": "uuid",
+      "due_date": "2026-04-15",
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ]
+}
+```
+
+#### `PATCH /projects/:id`
+
+Request:
+
+```json
+{
+  "name": "Updated Name",
+  "description": "Updated description"
+}
+```
+
+Response `200`: updated project object
+
+#### `DELETE /projects/:id`
+
+Response `204 No Content`
+
+### Tasks
+
+#### `GET /projects/:id/tasks?status=todo&assignee=uuid`
+
+Response `200`:
+
+```json
+{
+  "tasks": [
+    {
+      "id": "uuid",
+      "title": "Design homepage",
+      "description": "...",
+      "status": "todo",
+      "priority": "high",
+      "assignee_id": "uuid",
+      "due_date": "2026-04-15",
+      "created_at": "...",
+      "updated_at": "..."
+    }
+  ]
+}
+```
+
+#### `POST /projects/:id/tasks`
+
+Request:
+
+```json
+{
+  "title": "Design homepage",
+  "description": "...",
+  "priority": "high",
+  "assignee_id": "uuid",
+  "due_date": "2026-04-15"
+}
+```
+
+Response `201`: created task object
+
+#### `PATCH /tasks/:id`
+
+Request:
+
+```json
+{
+  "title": "Updated title",
+  "status": "done",
+  "priority": "low",
+  "assignee_id": "uuid",
+  "due_date": "2026-04-20"
+}
+```
+
+Response `200`: updated task object
+
+#### `DELETE /tasks/:id`
+
+Response `204 No Content`
+
+### Error Responses
+
+Validation error:
+
+```json
+{
+  "error": "validation failed",
+  "fields": {
+    "email": "is required"
+  }
+}
+```
+
+Unauthenticated:
+
+```json
+{
+  "error": "unauthorized"
+}
+```
+
+Forbidden:
+
+```json
+{
+  "error": "forbidden"
+}
+```
+
+Not found:
+
+```json
+{
+  "error": "not found"
+}
+```
+
+## 7. What I'd Do With More Time
+
+- I could have implemented better UI/UX designs
+- I would have tried to implement a backend.
+- I would have implemented different types of views for projects and the project details page. Like table view, column view (same like Jira).
+
+### Shortcuts I took
+
+- I kept the backend mocked with MSW instead of implementing the full stack.
+- I limited drag-and-drop to status-column moves because the provided contract does not support persisted custom ordering.
+- I optimized primarily for a polished, production-shaped frontend architecture rather than full backend infrastructure coverage in this repo.

@@ -89,7 +89,6 @@ export function ProjectDetailPage() {
             onCreateTask={detail.openCreateTaskEditor}
             onClearFilters={detail.clearFilters}
             onEditTask={detail.openEditTaskEditor}
-            onMoveTask={detail.moveTask}
             onStatusChange={detail.updateTaskStatus}
           />
         </div>

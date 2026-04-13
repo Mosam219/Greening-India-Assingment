@@ -30,13 +30,6 @@ import {
   getTaskStatusLabel,
   groupTasksByStatus,
 } from "@/features/projects/project-detail/utils";
-import {
-  createTaskOrderFromGroupedBoard,
-  isSameTaskOrder,
-  moveTaskInGroupedBoard,
-  sortTasksByTaskOrder,
-  useProjectTaskOrder,
-} from "@/features/projects/project-detail/task-order";
 import type {
   GetProjectResponse,
   GetProjectTasksResponse,
@@ -48,7 +41,6 @@ type UpdateTaskStatusContext = {
   taskQueriesSnapshots: Array<
     [readonly unknown[], GetProjectTasksResponse | undefined]
   >;
-  previousTaskOrder: string[];
 };
 
 export function useProjectDetailPage(projectId: string) {
@@ -112,15 +104,6 @@ export function useProjectDetailPage(projectId: string) {
   const allProjectTasks = project?.tasks ?? [];
   const projectHasTasks = allProjectTasks.length > 0;
   const hasActiveFilters = statusFilter !== "all" || assigneeFilter !== "all";
-  const { taskOrder, setTaskOrder } = useProjectTaskOrder(
-    projectId,
-    allProjectTasks,
-  );
-  const orderedAllProjectTasks = sortTasksByTaskOrder(
-    allProjectTasks,
-    taskOrder,
-  );
-  const orderedVisibleTasks = sortTasksByTaskOrder(visibleTasks, taskOrder);
 
   const assigneeLabelMap = project
     ? buildAssigneeLabelMap(project, user?.id ?? null)
@@ -128,8 +111,7 @@ export function useProjectDetailPage(projectId: string) {
   const assigneeOptions = buildAssigneeOptions(assigneeLabelMap);
   const editableAssigneeOptions =
     buildEditableAssigneeOptions(assigneeLabelMap);
-  const groupedTasks = groupTasksByStatus(orderedVisibleTasks);
-  const allGroupedTasks = groupTasksByStatus(orderedAllProjectTasks);
+  const groupedTasks = groupTasksByStatus(visibleTasks);
 
   const statusUpdateMutation = useMutation<
     Task,
@@ -148,9 +130,8 @@ export function useProjectDetailPage(projectId: string) {
         status: nextStatus,
       });
     },
-    onMutate: async ({ task, nextStatus, nextTaskOrder }) => {
+    onMutate: async ({ task, nextStatus }) => {
       setStatusUpdateError(null);
-      const previousTaskOrder = taskOrder;
 
       await Promise.all([
         queryClient.cancelQueries({
@@ -169,10 +150,6 @@ export function useProjectDetailPage(projectId: string) {
         });
       const optimisticTask = createOptimisticStatusTask(task, nextStatus);
 
-      if (nextTaskOrder) {
-        setTaskOrder(nextTaskOrder);
-      }
-
       queryClient.setQueryData<GetProjectResponse>(detailQueryKey, (current) =>
         updateProjectDetailTask(current, optimisticTask),
       );
@@ -186,12 +163,10 @@ export function useProjectDetailPage(projectId: string) {
       return {
         projectDetailSnapshot,
         taskQueriesSnapshots,
-        previousTaskOrder,
       };
     },
     onError: (_error, variables, context) => {
       queryClient.setQueryData(detailQueryKey, context?.projectDetailSnapshot);
-      setTaskOrder(context?.previousTaskOrder ?? []);
 
       for (const [queryKey, snapshot] of context?.taskQueriesSnapshots ?? []) {
         queryClient.setQueryData(queryKey, snapshot);
@@ -236,54 +211,11 @@ export function useProjectDetailPage(projectId: string) {
     task: Task,
     nextStatus: UpdateTaskStatusVariables["nextStatus"],
   ) {
-    const nextTaskOrder =
-      task.status === nextStatus
-        ? undefined
-        : createTaskOrderFromGroupedBoard(
-            moveTaskInGroupedBoard({
-              groupedTasks: allGroupedTasks,
-              task,
-              targetStatus: nextStatus,
-            }),
-          );
-
-    statusUpdateMutation.mutate({ task, nextStatus, nextTaskOrder });
-  }
-
-  function moveTask(
-    task: Task,
-    targetStatus: UpdateTaskStatusVariables["nextStatus"],
-    overTaskId?: string,
-  ) {
-    if (overTaskId === task.id) {
+    if (task.status === nextStatus) {
       return;
     }
 
-    const nextGroupedTasks = moveTaskInGroupedBoard({
-      groupedTasks: allGroupedTasks,
-      task,
-      targetStatus,
-      overTaskId,
-    });
-    const nextTaskOrder = createTaskOrderFromGroupedBoard(nextGroupedTasks);
-
-    if (
-      isSameTaskOrder(taskOrder, nextTaskOrder) &&
-      targetStatus === task.status
-    ) {
-      return;
-    }
-
-    if (targetStatus === task.status) {
-      setTaskOrder(nextTaskOrder);
-      return;
-    }
-
-    statusUpdateMutation.mutate({
-      task,
-      nextStatus: targetStatus,
-      nextTaskOrder,
-    });
+    statusUpdateMutation.mutate({ task, nextStatus });
   }
 
   return {
@@ -302,7 +234,6 @@ export function useProjectDetailPage(projectId: string) {
     editableAssigneeOptions,
     assigneeLabelMap,
     groupedTasks,
-    taskOrder,
     projectDetailQuery,
     tasksQuery,
     setStatusFilter,
@@ -311,7 +242,6 @@ export function useProjectDetailPage(projectId: string) {
     openCreateTaskEditor,
     openEditTaskEditor,
     closeTaskEditor,
-    moveTask,
     updateTaskStatus,
     statusUpdateMutation,
   };
