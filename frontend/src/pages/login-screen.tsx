@@ -75,7 +75,6 @@ export function LoginScreen() {
 
   return (
     <AuthPageFrame
-      badge="Step 7"
       title="Welcome back to TaskFlow"
       description="Sign in with a seeded account or your own registered user. Authentication state persists across refreshes and unlocks the protected workspace routes."
       highlights={highlightItems}

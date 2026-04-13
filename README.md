@@ -4,6 +4,8 @@ Frontend-only implementation of TaskFlow, built as a small but complete task man
 
 The application code lives in [`frontend/`](./frontend).
 
+This repository currently contains the frontend application only. Backend, database, migrations, and seed infrastructure mentioned in broader full-stack requirements are outside the scope of this repo.
+
 ## Implemented Features
 
 - User-focused landing page with clear auth entry points
@@ -52,6 +54,41 @@ Why:
 
 Mock handlers live in `frontend/src/mocks`, and the generated service worker lives in `frontend/public/mockServiceWorker.js`.
 
+## Docker
+
+The frontend now includes a production-oriented container setup:
+
+- [`frontend/Dockerfile`](./frontend/Dockerfile): multi-stage frontend build
+- [`frontend/nginx/default.conf`](./frontend/nginx/default.conf): SPA-safe Nginx config with history fallback
+- [`docker-compose.yml`](./docker-compose.yml): root-level compose file for the frontend service
+- [`.env.example`](./.env.example): root-level defaults used by Docker Compose
+
+### Run With Docker
+
+```bash
+docker compose up --build
+```
+
+Then open `http://localhost:3000` unless you changed `FRONTEND_PORT`.
+
+If you want to override the defaults, copy `.env.example` to `.env` and adjust the values before running Compose.
+
+### Docker Environment
+
+The root [`.env.example`](./.env.example) provides these defaults:
+
+```bash
+FRONTEND_PORT=3000
+VITE_API_BASE_URL=http://localhost:4000
+VITE_ENABLE_API_MOCKS=true
+```
+
+Notes:
+
+- `VITE_*` values are build-time arguments for the frontend image.
+- With `VITE_ENABLE_API_MOCKS=true`, the app remains frontend-only and serves mocked API responses in the browser.
+- If you later connect a real API container, set `VITE_ENABLE_API_MOCKS=false` and point `VITE_API_BASE_URL` to the appropriate API origin.
+
 ## Supported API Contract
 
 The frontend is written against the provided backend contract:
@@ -72,7 +109,7 @@ You can also register a new user through the UI.
 
 ## Environment
 
-Environment configuration is defined in [`frontend/.env.example`](./frontend/.env.example):
+Environment configuration for local non-Docker development is defined in [`frontend/.env.example`](./frontend/.env.example):
 
 ```bash
 VITE_API_BASE_URL=http://localhost:4000
@@ -107,6 +144,7 @@ pnpm preview
 
 ```text
 frontend/
+  nginx/        Nginx config for the production container
   public/       Static assets and generated MSW worker
   src/
     app/        Bootstrap, providers, and router
@@ -140,6 +178,7 @@ pnpm build
 ## Notes
 
 - This submission does not include a real backend or database.
+- The root `docker-compose.yml` starts the frontend service only, because this repo does not include API or PostgreSQL code.
 - Mock API state is browser-local and resets if the dev session is restarted.
 - Assignee labels are derived from project and task context because the provided contract does not include a user listing endpoint.
 - Auth state, theme preference, and drag-and-drop task ordering persist in `localStorage`.

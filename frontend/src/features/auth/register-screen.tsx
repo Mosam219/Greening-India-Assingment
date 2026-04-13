@@ -78,7 +78,6 @@ export function RegisterScreen() {
 
   return (
     <AuthPageFrame
-      badge="Step 7"
       title="Create your TaskFlow account"
       description="Registration uses the same backend contract as login, persists your JWT-backed session, and sends you directly into the protected project workspace."
       highlights={highlightItems}
