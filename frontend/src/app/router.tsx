@@ -1,52 +1,47 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter } from "react-router-dom";
 
-import { NotFoundPage } from '@/pages/not-found-page'
-import { PlaceholderPage } from '@/pages/placeholder-page'
-import { ScaffoldHomePage } from '@/pages/scaffold-home-page'
+import { AppShellLayout } from "@/components/layout/app-shell-layout";
+import { ProtectedRoute } from "@/features/auth";
+import { NotFoundPage } from "@/pages/not-found-page";
+import { ProjectDetailPage } from "@/pages/project-detail-page";
+import { ProjectsListPage } from "@/pages/projects-list-page";
+import { RegisterPage } from "@/pages/register-page";
+import { ScaffoldHomePage } from "@/pages/scaffold-home-page";
+import { LoginScreen } from "@/pages/login-screen";
 
 export const router = createBrowserRouter([
   {
-    path: '/',
+    path: "/",
     element: <ScaffoldHomePage />,
   },
   {
-    path: '/login',
-    element: (
-      <PlaceholderPage
-        title="Login Route"
-        description="Authentication UI and protected-route behavior land in the next steps."
-      />
-    ),
+    path: "/login",
+    element: <LoginScreen />,
   },
   {
-    path: '/register',
-    element: (
-      <PlaceholderPage
-        title="Register Route"
-        description="Client-side validation and auth wiring will be implemented after the scaffold."
-      />
-    ),
+    path: "/register",
+    element: <RegisterPage />,
   },
   {
-    path: '/projects',
+    path: "/projects",
     element: (
-      <PlaceholderPage
-        title="Projects Route"
-        description="This route is reserved for the accessible-projects list and create-project flow."
-      />
+      <ProtectedRoute>
+        <AppShellLayout />
+      </ProtectedRoute>
     ),
+    children: [
+      {
+        index: true,
+        element: <ProjectsListPage />,
+      },
+      {
+        path: ":projectId",
+        element: <ProjectDetailPage />,
+      },
+    ],
   },
   {
-    path: '/projects/:projectId',
-    element: (
-      <PlaceholderPage
-        title="Project Detail Route"
-        description="Task lists, filters, and create or edit interactions will attach here."
-      />
-    ),
-  },
-  {
-    path: '*',
+    path: "*",
     element: <NotFoundPage />,
   },
-])
+]);
